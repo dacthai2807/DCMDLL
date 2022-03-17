@@ -26,6 +26,7 @@ void load(int argc, char const *argv[]) {
 			cout << "\t+Rl\t--rotate-left\n";
 			cout << "\t+Rr\t--rotate-right\n";
 			cout << "\t+Rtd\t--rotate-top-down\n";
+			cout << "\t+Rn 'n'(signed int: 0, 90, 180, 270, 360)\t--rotate-n-degree\n";
 
 			cout << "For flipping image:\n";
 			cout << "\t+Fh\t--flip-horizontally\n";
@@ -42,6 +43,17 @@ void load(int argc, char const *argv[]) {
 			
 			cout << "For changing contrast of image:\n";
 			cout << "\t+Cc\t--change-contrast\n";
+
+			cout << "For converting dicom file to BMP file:\n";
+			cout << "\t+Tbmp --to-BMP-file\n";
+
+			cout << "For applying VOI LUT transformation:\n";
+			cout << "\t+Wfl (default) --set-VOI-LUT-function-to-linear\n";
+			cout << "\t+Wfs --set-VOI-LUT-function-to-sigmoid\n";
+			cout << "\t+Wi 'n'(signed int) --apply-n-th-existing-VOI-windows\n";
+			cout << "\t+Wm --apply-min-max-VOI-windows\n";
+			cout << "\t+Wh 'n'(signed int) --apply-histogram-VOI-windows-ignore-n-percent\n";
+			cout << "\t+Ww 'center'(float) 'width'(float) --apply-setting-VOI-windows\n";
 		}
 		else if (strcmp(argv[1], "-i") == 0 && argc >= 5) {
 			char *inputFilename = new char[strlen(argv[2]) + 1];
@@ -52,6 +64,8 @@ void load(int argc, char const *argv[]) {
 				strcpy(outputFilename, argv[4]);
 
 				ImgProcessor *imgProcessor = new ImgProcessor();
+
+				VOI_LUT_FUNCTION voiLutFunc = LINEAR;
 
 				for (int i = 5; i < argc; ++i) {
 					char *command = new char[strlen(argv[i]) + 1];
@@ -79,6 +93,16 @@ void load(int argc, char const *argv[]) {
 						}
 						else {
 							cout << "Failed to rotate image top-down\n";
+						}
+					}
+					else if (strcmp(command, "+Rn") == 0 && i + 1 < argc) {
+						strcpy(command, argv[++i]);
+						signed int degree = atoi(command);
+						if (imgProcessor->rotateImage(inputFilename, outputFilename, degree)) {
+							cout << "Rotate image n-degree successfully\n";
+						}
+						else {
+							cout << "Failed to rotate image n-degree\n";
 						}
 					}
 					else if (strcmp(command, "+Fh") == 0) {
@@ -169,6 +193,62 @@ void load(int argc, char const *argv[]) {
 							cout << "Failed to change contrast of image\n";
 						}
 					}
+					else if (strcmp(command, "+Tbmp") == 0) {
+						if (imgProcessor->convertToBMPFile(inputFilename, outputFilename)) {
+							cout << "Change convert to BMP file successfully\n";
+						}
+						else {
+							cout << "Failed to convert to BMP file\n";
+						}
+					}
+					else if (strcmp(command, "+Wfl") == 0) {
+						voiLutFunc = LINEAR;
+						cout << "Set VOI LUT function to LINEAR successfully\n";
+					}
+					else if (strcmp(command, "+Wfs") == 0) {
+						voiLutFunc = SIGMOID;
+						cout << "Set VOI LUT function to SIGMOID successfully\n";
+					}
+					else if (strcmp(command, "+Wi") == 0 && i + 1 < argc) {
+						strcpy(command, argv[++i]);
+						signed int numOfWindows = atoi(command);
+						if (imgProcessor->applyExistingVOIWindows(inputFilename, outputFilename, numOfWindows, voiLutFunc)) {
+							cout << "Apply existing VOI windows successfully\n";
+						}
+						else {
+							cout << "Failed to apply existing VOI windows\n";
+						}
+					}
+					else if (strcmp(command, "+Wm") == 0) {
+						if (imgProcessor->applyMinMaxVOIWindows(inputFilename, outputFilename, voiLutFunc)) {
+							cout << "Apply min max VOI windows successfully\n";
+						}
+						else {
+							cout << "Failed to apply min max VOI windows\n";
+						}
+					}
+					else if (strcmp(command, "+Wh") == 0 && i + 1 < argc) {
+						strcpy(command, argv[++i]);
+						signed int ignoringPercent = atoi(command);
+						if (imgProcessor->applyHistogramVOIWindows(inputFilename, outputFilename, ignoringPercent, voiLutFunc)) {
+							cout << "Apply histogram VOI windows successfully\n";
+						}
+						else {
+							cout << "Failed to apply histogram VOI windows\n";
+						}
+					}
+					else if (strcmp(command, "+Ww") == 0 && i + 2 < argc) {
+						strcpy(command, argv[++i]);
+						float center = atof(command);
+						strcpy(command, argv[++i]);
+						float width = atof(command);
+						if (imgProcessor->applySettingVOIWindows(inputFilename, outputFilename, center, width, voiLutFunc)) {
+							cout << "Apply setting VOI windows successfully\n";
+						}
+						else {
+							cout << "Failed to apply setting VOI windows\n";
+						}
+					}
 				}
 			}
 			else {
@@ -190,7 +270,7 @@ int main(int argc, char const *argv[]) {
 	DicomDirInterface dicomdir;
 	OFCondition status = dicomdir.createNewDicomDir();
 	if (status.good()) {
-		int n = 11;
+		int n = 10;
 		for (int i = 1; i <= n; ++i) {
 			string s;
 			if (i <= 9) {
